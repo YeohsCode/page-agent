@@ -33,6 +33,12 @@ function App() {
   const [showModal, setShowModal] = useState(false);
   const [targetUrl, setTargetUrl] = useState("https://www.google.com");
 
+  // 原生面板对话状态
+  const [chatPrompt, setChatPrompt] = useState("");
+  const [chatHistory, setChatHistory] = useState([
+    { role: 'agent', content: '已成功抛弃网页注入。我现在是 Tauri 原生对话组件，就在页面的最下方。我再也不会被网站的安全策略卡住了。' }
+  ]);
+
   const webviewRef = useRef<HTMLDivElement>(null);
 
   // Load data from Rust on mount
@@ -248,12 +254,16 @@ function App() {
               </div>
 
               <div style={{ flex: 1, padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ width: '28px', height: '28px', background: 'rgba(57,182,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🤖</div>
-                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 14px', borderRadius: '0 12px 12px 12px', fontSize: '13px', color: '#e2e8f0', maxWidth: '80%', lineHeight: '1.5' }}>
-                    已成功抛弃网页注入。我现在是 <b>Tauri 原生对话组件</b>，就在页面的最下方。<br />我再也不会被网站的安全策略卡住了。
+                {chatHistory.map((msg, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '12px', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row' }}>
+                    <div style={{ width: '28px', height: '28px', background: msg.role === 'user' ? 'rgba(16,185,129,0.2)' : 'rgba(57,182,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>
+                      {msg.role === 'user' ? '👤' : '🤖'}
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 14px', borderRadius: msg.role === 'user' ? '12px 12px 0 12px' : '0 12px 12px 12px', fontSize: '13px', color: '#e2e8f0', maxWidth: '80%', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                      {msg.content}
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
 
               <div style={{ padding: '12px 20px', background: 'rgba(0,0,0,0.2)' }}>
@@ -261,6 +271,17 @@ function App() {
                   <input
                     type="text"
                     placeholder="在此输入你要 Agent 执行的动作，例如：“搜索输入 Ozon.com” 等..."
+                    value={chatPrompt}
+                    onChange={e => setChatPrompt(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && chatPrompt.trim()) {
+                        const task = chatPrompt.trim();
+                        const newMsg = { role: 'user', content: task };
+                        setChatHistory([...chatHistory, newMsg, { role: 'agent', content: '收到指令，已通过 IPC 转交后台的执行核心进行处理。如果目标页面内存在该功能，会自动触发它。' }]);
+                        invoke('execute_agent_task', { task }).catch(err => console.error('IPC task failed:', err));
+                        setChatPrompt("");
+                      }
+                    }}
                     style={{
                       width: '100%',
                       padding: '12px 90px 12px 16px',
@@ -273,20 +294,32 @@ function App() {
                       boxSizing: 'border-box'
                     }}
                   />
-                  <button style={{
-                    position: 'absolute',
-                    right: '6px',
-                    top: '6px',
-                    bottom: '6px',
-                    background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-                    border: 'none',
-                    color: 'white',
-                    padding: '0 16px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '13px',
-                    fontWeight: '500'
-                  }}>发送指令</button>
+                  <button
+                    onClick={() => {
+                      if (chatPrompt.trim()) {
+                        const task = chatPrompt.trim();
+                        const newMsg = { role: 'user', content: task };
+                        setChatHistory([...chatHistory, newMsg, { role: 'agent', content: '收到指令，已通过 IPC 转交后台的执行核心进行处理。如果目标页面内存在该功能，会自动触发它。' }]);
+                        invoke('execute_agent_task', { task }).catch(err => console.error('IPC task failed:', err));
+                        setChatPrompt("");
+                      }
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: '6px',
+                      top: '6px',
+                      bottom: '6px',
+                      background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                      border: 'none',
+                      color: 'white',
+                      padding: '0 16px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: '500'
+                    }}>
+                    发送指令
+                  </button>
                 </div>
               </div>
             </div>

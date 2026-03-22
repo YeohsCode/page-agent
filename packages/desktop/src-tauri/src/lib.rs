@@ -162,6 +162,19 @@ async fn resize_browser<R: Runtime>(app: AppHandle<R>, x: i32, y: i32, width: i3
 }
 
 #[tauri::command]
+async fn execute_agent_task<R: Runtime>(app: AppHandle<R>, task: String) -> Result<(), String> {
+    if let Some(webview) = app.get_webview("session-view") {
+        // Evaluate JavaScript to run the task on the injected PageAgent instance
+        let js_code = format!(
+            "if (window.pageAgent) {{ window.pageAgent.execute(`{}`); }} else {{ console.error('PageAgent not injected yet.'); }}",
+            task.replace('`', "\\`") // escape backticks
+        );
+        let _ = webview.eval(&js_code);
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn open_help_url<R: Runtime>(app: AppHandle<R>, url: String) -> Result<(), String> {
     app.opener().open_url(url, None::<String>).map_err(|e| e.to_string())
 }
@@ -172,7 +185,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             get_config, save_config, save_workflow, list_workflows, delete_workflow,
-            open_browser, close_browser, navigate_browser, resize_browser, open_help_url
+            open_browser, close_browser, navigate_browser, resize_browser, open_help_url,
+            execute_agent_task
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
