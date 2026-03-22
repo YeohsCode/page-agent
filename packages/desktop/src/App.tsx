@@ -130,10 +130,8 @@ function App() {
         }).catch(err => console.error(err));
       }
     });
-
     observer.observe(webviewRef.current);
 
-    // Also track window resizes just in case
     const handleResize = () => {
       const bound = webviewRef.current?.getBoundingClientRect();
       const isMac = navigator.userAgent.includes('Mac');
@@ -229,6 +227,68 @@ function App() {
             <div className="webview-placeholder" ref={webviewRef}>
               {/* Tauri will overlay the sub-webview here */}
               <div className="placeholder-text">浏览器加载中...</div>
+            </div>
+
+            {/* 🔥 新架构：完全位于页面下方的对话式控制台 🔥 */}
+            <div
+              style={{
+                width: '100%',
+                height: '240px',
+                background: '#1e1e24',
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                fontFamily: 'system-ui, -apple-system, sans-serif'
+              }}
+            >
+              <div style={{ padding: '12px 20px', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontSize: '18px', marginRight: '8px' }}>🤖</span>
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#fff' }}>PageAgent Chat Console</span>
+                <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>● 独立运行</span>
+              </div>
+
+              <div style={{ flex: 1, padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ width: '28px', height: '28px', background: 'rgba(57,182,255,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🤖</div>
+                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 14px', borderRadius: '0 12px 12px 12px', fontSize: '13px', color: '#e2e8f0', maxWidth: '80%', lineHeight: '1.5' }}>
+                    已成功抛弃网页注入。我现在是 <b>Tauri 原生对话组件</b>，就在页面的最下方。<br />我再也不会被网站的安全策略卡住了。
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ padding: '12px 20px', background: 'rgba(0,0,0,0.2)' }}>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="text"
+                    placeholder="在此输入你要 Agent 执行的动作，例如：“搜索输入 Ozon.com” 等..."
+                    style={{
+                      width: '100%',
+                      padding: '12px 90px 12px 16px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.05)',
+                      color: 'white',
+                      outline: 'none',
+                      fontSize: '13px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <button style={{
+                    position: 'absolute',
+                    right: '6px',
+                    top: '6px',
+                    bottom: '6px',
+                    background: 'linear-gradient(135deg, #6366f1, #a855f7)',
+                    border: 'none',
+                    color: 'white',
+                    padding: '0 16px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: '500'
+                  }}>发送指令</button>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
