@@ -17,7 +17,19 @@ dotenvConfig({ path: resolve(__dirname, '../../.env'), quiet: true })
 // - no d.ts. dts does not work with monorepo aliasing
 export default defineConfig(() => ({
 	plugins: [
-		cssInjectedByJsPlugin({ relativeCSSInjection: true }),
+		cssInjectedByJsPlugin({
+			injectCode: (cssCode) => {
+				return `
+					var style = document.createElement("style");
+					style.textContent = ${cssCode};
+					if (document.head) {
+						document.head.appendChild(style);
+					} else {
+						document.addEventListener("DOMContentLoaded", () => document.head.appendChild(style));
+					}
+				`;
+			}
+		}),
 		// analyzer()
 	],
 	publicDir: false,

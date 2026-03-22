@@ -12,7 +12,8 @@
         "packages/page-agent",
         "packages/mcp",
         "packages/extension",
-        "packages/website"
+        "packages/website",
+        "packages/desktop"
     ],
     "description": "AI-powered UI agent for web applications",
     "author": "Simon<gaomeng1900>",

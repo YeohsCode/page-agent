@@ -1,43 +1,52 @@
-name: Release
+name: "Release"
 
 on:
   push:
-    tags:
-      - 'v*'
-
-permissions:
-  id-token: write # Required for OIDC
-  contents: read
+    branches:
+      - main
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  publish:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "macos-latest" # for Arm64 & x64
+            args: "--target universal-apple-darwin"
+          - platform: "windows-latest" # for Windows 11 x64
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: setup node
+        uses: actions/setup-node@v4
         with:
-          node-version: 24
-          registry-url: 'https://registry.npmjs.org'
+          node-version: lts/*
 
-      # Ensure npm 11.5.1 or later is installed
-      - name: Update npm
-        run: npm install -g npm@latest
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          # Those targets are only used on macos-latest
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: Install dependencies
-        run: npm ci
+      - name: install frontend dependencies
+        run: npm install
 
-      - name: Build
+      - name: build monorepo libs
         run: npm run build:libs
 
-      - name: Publish all public packages
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          if [[ "$VERSION" == *"-"* ]]; then
-            # Prerelease version (e.g., 0.3.0-beta.1) -> extract tag name before the dot
-            TAG=$(echo "$VERSION" | sed 's/.*-\([a-zA-Z]*\).*/\1/')
-            npm publish --workspaces --access public --tag "$TAG"
-          else
-            npm publish --workspaces --access public
-          fi
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__ # tauri-action replaces this with the app version
+          releaseName: "PageAgent v__VERSION__"
+          releaseBody: "See the assets below for the latest PageAgent desktop release."
+          releaseDraft: true
+          prerelease: false
+          projectPath: "packages/desktop"
+          args: ${{ matrix.args }}

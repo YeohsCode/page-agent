@@ -36,6 +36,9 @@ export class Panel {
 	#actionButton: HTMLElement
 	#inputSection: HTMLElement
 	#taskInput: HTMLInputElement
+	#navSection: HTMLElement
+	#navInput: HTMLInputElement
+	#navBtn: HTMLButtonElement
 
 	#agent: PanelAgentAdapter
 	#config: PanelConfig
@@ -79,6 +82,9 @@ export class Panel {
 		this.#actionButton = this.#wrapper.querySelector(`.${styles.stopButton}`)!
 		this.#inputSection = this.#wrapper.querySelector(`.${styles.inputSectionWrapper}`)!
 		this.#taskInput = this.#wrapper.querySelector(`.${styles.taskInput}`)!
+		this.#navSection = this.#wrapper.querySelector(`.${styles.navSection}`)!
+		this.#navInput = this.#wrapper.querySelector(`.${styles.navInput}`)!
+		this.#navBtn = this.#wrapper.querySelector(`.${styles.navBtn}`)!
 
 		// Listen to agent events
 		this.#agent.addEventListener('statuschange', this.#onStatusChange)
@@ -87,8 +93,10 @@ export class Panel {
 		this.#agent.addEventListener('dispose', this.#onAgentDispose)
 
 		this.#setupEventListeners()
+		this.#setupNavEventListeners()
 		this.#startHeaderUpdateLoop()
 
+		this.#showNavIfSupported()
 		this.#showInputArea()
 
 		this.hide() // Start hidden
@@ -381,7 +389,7 @@ export class Panel {
 		wrapper.setAttribute('data-browser-use-ignore', 'true')
 		wrapper.setAttribute('data-page-agent-ignore', 'true')
 
-		wrapper.innerHTML = `
+		let htmlString = `
 			<div class="${styles.background}"></div>
 			<div class="${styles.historySectionWrapper}">
 				<div class="${styles.historySection}">
@@ -407,6 +415,12 @@ export class Panel {
 					</button>
 				</div>
 			</div>
+			
+			<div class="${styles.navSection} ${styles.hidden}">
+				<input type="text" class="${styles.navInput}" placeholder="https://..." />
+				<button class="${styles.navBtn}">Go</button>
+			</div>
+
 			<div class="${styles.inputSectionWrapper} ${styles.hidden}">
 				<div class="${styles.inputSection}">
 					<input 
@@ -417,6 +431,18 @@ export class Panel {
 				</div>
 			</div>
 		`
+
+		if ((window as any).trustedTypes && (window as any).trustedTypes.createPolicy) {
+			try {
+				if (!(window as any).__ttPolicy) {
+					(window as any).__ttPolicy = (window as any).trustedTypes.createPolicy('page-agent-policy', { createHTML: (str: string) => str });
+				}
+				htmlString = (window as any).__ttPolicy.createHTML(htmlString);
+			} catch (e) {
+				// Policy might be blocked by CSP
+			}
+		}
+		wrapper.innerHTML = htmlString;
 
 		document.body.appendChild(wrapper)
 		return wrapper
@@ -555,6 +581,27 @@ export class Panel {
 		this.#indicator.classList.add(styles[type])
 	}
 
+	#showNavIfSupported(): void {
+		if (this.#agent.onNavigate) {
+			this.#navSection.classList.remove(styles.hidden)
+			this.#navInput.value = window.location.href
+		}
+	}
+
+	#setupNavEventListeners(): void {
+		const navigate = () => {
+			const url = this.#navInput.value.trim()
+			if (url && this.#agent.onNavigate) {
+				this.#agent.onNavigate(url)
+			}
+		}
+
+		this.#navBtn.addEventListener('click', navigate)
+		this.#navInput.addEventListener('keydown', (e) => {
+			if (e.key === 'Enter') navigate()
+		})
+	}
+
 	#scrollToBottom(): void {
 		// Execute in next event loop to ensure DOM update completion
 		setTimeout(() => {
@@ -586,6 +633,20 @@ export class Panel {
 			items.push(...this.#createHistoryCards(event))
 		}
 
+		// 3. Desktop Tutorial / Welcome Card (If empty)
+		if (items.length === 0) {
+			items.push(createCard({
+				icon: '🎁',
+				content: [
+					'<b>欢迎使用 PageAgent 桌面端！</b>',
+					'1. 在下方输入框直接描述你想在页面做的操作（如：帮我搜索手机并点击第一个结果）。',
+					'2. 你也可以手动在浏览器操作，PageAgent 会自动识别并允许你将其固化为 Workflow。',
+					'3. 任务完成后，点击 💾 按钮即可将这套操作“固化”到本地脚本库，下次一键执行！'
+				],
+				type: 'observation'
+			}))
+		}
+
 		this.#historySection.innerHTML = items.join('')
 		this.#scrollToBottom()
 	}
@@ -600,8 +661,8 @@ export class Panel {
 		const meta =
 			event.type === 'step' && event.stepIndex !== undefined
 				? this.#i18n.t('ui.panel.step', {
-						number: (event.stepIndex + 1).toString(),
-					})
+					number: (event.stepIndex + 1).toString(),
+				})
 				: undefined
 
 		if (event.type === 'step') {

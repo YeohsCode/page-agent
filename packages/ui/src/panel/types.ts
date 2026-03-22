@@ -99,4 +99,7 @@ export interface PanelAgentAdapter extends EventTarget {
 
 	/** Re-generate (update) a workflow by re-executing its original task with LLM */
 	onUpdateWorkflow?: (id: string) => Promise<void>
+
+	/** Navigate to a new URL (for Desktop/Popup environments) */
+	onNavigate?: (url: string) => void
 }

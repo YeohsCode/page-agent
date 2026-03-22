@@ -17,12 +17,23 @@ const DEMO_MODEL = 'qwen3.5-plus'
 const DEMO_BASE_URL = 'https://page-ag-testing-ohftxirgbn.cn-shanghai.fcapp.run'
 const DEMO_API_KEY = 'NA'
 
-// in case document.x is not ready yet
-setTimeout(() => {
+// wait for document body to be fully loaded to prevent SPA re-rendering from wiping out the injected UI
+function initAgent() {
+	if (document.readyState !== 'complete') {
+		window.addEventListener('load', initAgent);
+		return;
+	}
+
 	const currentScript = document.currentScript as HTMLScriptElement | null
 	let config: PageAgentConfig
 
-	if (currentScript) {
+	// 1. Priority: Check for Tauri/Injection config
+	if ((window as any).PAGE_AGENT_CONFIG) {
+		console.log('🚀 [Tauri] Detected injected PAGE_AGENT_CONFIG');
+		config = (window as any).PAGE_AGENT_CONFIG;
+	}
+	// 2. Secondary: Check for script tag URL params
+	else if (currentScript) {
 		console.log('🚀 page-agent.js detected current script:', currentScript.src)
 		const url = new URL(currentScript.src)
 		const model = url.searchParams.get('model') || DEMO_MODEL
@@ -30,7 +41,9 @@ setTimeout(() => {
 		const apiKey = url.searchParams.get('apiKey') || DEMO_API_KEY
 		const language = (url.searchParams.get('lang') as 'zh-CN' | 'en-US') || 'zh-CN'
 		config = { model, baseURL, apiKey, language }
-	} else {
+	}
+	// 3. Fallback: Demo defaults
+	else {
 		console.log('🚀 page-agent.js no current script detected, using default demo config')
 		config = {
 			model: import.meta.env.LLM_MODEL_NAME ? import.meta.env.LLM_MODEL_NAME : DEMO_MODEL,
@@ -40,8 +53,19 @@ setTimeout(() => {
 	}
 
 	// Create agent
-	window.pageAgent = new PageAgent(config)
-	window.pageAgent.panel.show()
+	try {
+		console.log('🚀 page-agent.js creating PageAgent with:', config);
+		window.pageAgent = new PageAgent(config);
+		// Force display
+		setTimeout(() => {
+			if (window.pageAgent) {
+				window.pageAgent.panel.show();
+			}
+		}, 500);
+		console.log('🚀 page-agent.js instance created successfully');
+	} catch (e) {
+		console.error('❌ page-agent.js failed to create PageAgent:', e);
+	}
+}
 
-	console.log('🚀 page-agent.js initialized with config:', window.pageAgent.config)
-})
+initAgent();

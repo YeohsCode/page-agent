@@ -26,32 +26,69 @@ export class PageAgent extends PageAgentCore {
 	onExportWorkflow?: (id: string) => void
 	onImportWorkflow?: (file: File) => Promise<string | null>
 	onUpdateWorkflow?: (id: string) => Promise<void>
+	onNavigate?: (url: string) => void
 
 	constructor(config: PageAgentConfig) {
-		const pageController = new PageController({
+		// If in Tauri, merge injected config
+		const tauriConfig = (window as any).PAGE_AGENT_CONFIG;
+		const mergedConfig = {
 			...config,
-			enableMask: config.enableMask ?? true,
+			...(tauriConfig || {})
+		};
+
+		const pageController = new PageController({
+			...mergedConfig,
+			enableMask: mergedConfig.enableMask ?? true,
 		})
 
-		super({ ...config, pageController })
+		super({ ...mergedConfig, pageController })
 
 		this.#pageController = pageController
 		this.#workflowStore = new WorkflowStore()
 
 		this.panel = new Panel(this, {
-			language: config.language,
+			language: mergedConfig.language,
 		})
 
 		// Wire up workflow callbacks
 		this.#setupWorkflowCallbacks()
+
+		// Show panel immediately in desktop sessions
+		this.panel.show()
+	}
+
+	#isTauri(): boolean {
+		return !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
+	}
+
+	async #invokeTauri<T>(cmd: string, args?: any): Promise<T> {
+		const tauri = (window as any).__TAURI__;
+		if (tauri && tauri.core && tauri.core.invoke) {
+			return tauri.core.invoke(cmd, args);
+		}
+		// Fallback for v2 with globals enabled or injected
+		if ((window as any).__TAURI_INTERNALS__) {
+			return (window as any).__TAURI_INTERNALS__.invoke(cmd, args);
+		}
+		throw new Error("Tauri not found");
 	}
 
 	#setupWorkflowCallbacks(): void {
+		const isTauri = this.#isTauri();
+
 		// Save current history as workflow
 		this.onSaveWorkflow = (name: string): string | null => {
 			try {
 				const workflow = fromHistory(this.history, name, this.task || '', window.location.href)
-				this.#workflowStore.save(workflow)
+
+				if (isTauri) {
+					this.#invokeTauri("save_workflow", {
+						id: workflow.id,
+						workflowJson: JSON.stringify(workflow)
+					}).catch(e => console.error("Tauri save failed", e));
+				} else {
+					this.#workflowStore.save(workflow)
+				}
 				return workflow.id
 			} catch (e) {
 				console.error('[PageAgent] Failed to save workflow:', e)
@@ -61,6 +98,11 @@ export class PageAgent extends PageAgentCore {
 
 		// List all saved workflows
 		this.onListWorkflows = () => {
+			// Note: list is sync in Panel, so for Tauri we might need to pre-fetch 
+			// or handle the sync/async gap. For now, use localStore as cache plus Rust as source.
+			// Or better: Panel supports async list? No, it's sync.
+			// Tactical fix: for Desktop, we'll rely on the Dashboard for listing/management,
+			// but we want the on-page list to work too.
 			return this.#workflowStore.list().map((w) => ({
 				id: w.id,
 				name: w.name,
@@ -71,7 +113,19 @@ export class PageAgent extends PageAgentCore {
 
 		// Play a saved workflow (no LLM)
 		this.onPlayWorkflow = async (id: string) => {
-			const workflow = this.#workflowStore.get(id)
+			let workflow = this.#workflowStore.get(id)
+
+			if (!workflow && isTauri) {
+				// Try fetching from Rust if not in local cache
+				try {
+					const allWfs = await this.#invokeTauri<string[]>("list_workflows");
+					const found = allWfs.find(s => s.includes(id));
+					if (found) workflow = JSON.parse(found);
+				} catch (e) {
+					console.error("Tauri load failed", e);
+				}
+			}
+
 			if (!workflow) {
 				return { success: false, message: 'Workflow not found' }
 			}
@@ -98,6 +152,9 @@ export class PageAgent extends PageAgentCore {
 		// Delete a workflow
 		this.onDeleteWorkflow = (id: string) => {
 			this.#workflowStore.delete(id)
+			if (isTauri) {
+				this.#invokeTauri("delete_workflow", { id }).catch(e => console.error("Tauri delete failed", e));
+			}
 		}
 
 		// Export workflow as JSON file
@@ -112,7 +169,14 @@ export class PageAgent extends PageAgentCore {
 		this.onImportWorkflow = async (file: File): Promise<string | null> => {
 			try {
 				const workflow = await this.#workflowStore.importFromFile(file)
-				this.#workflowStore.save(workflow)
+				if (isTauri) {
+					await this.#invokeTauri("save_workflow", {
+						id: workflow.id,
+						workflowJson: JSON.stringify(workflow)
+					});
+				} else {
+					this.#workflowStore.save(workflow)
+				}
 				return workflow.id
 			} catch (e) {
 				console.error('[PageAgent] Failed to import workflow:', e)
@@ -139,8 +203,26 @@ export class PageAgent extends PageAgentCore {
 				// Keep same ID, bump version
 				newWorkflow.id = oldWorkflow.id
 				newWorkflow.version = oldWorkflow.version + 1
-				this.#workflowStore.save(newWorkflow)
+
+				if (isTauri) {
+					await this.#invokeTauri("save_workflow", {
+						id: newWorkflow.id,
+						workflowJson: JSON.stringify(newWorkflow)
+					});
+				} else {
+					this.#workflowStore.save(newWorkflow)
+				}
 			}
+		}
+
+		// Support navigation within the window
+		this.onNavigate = (url: string) => {
+			if (!url) return
+			let finalUrl = url.trim()
+			if (!/^https?:\/\//i.test(finalUrl)) {
+				finalUrl = 'https://' + finalUrl
+			}
+			window.location.href = finalUrl
 		}
 	}
 }
