@@ -73,4 +73,30 @@ export interface PanelAgentAdapter extends EventTarget {
 
 	/** Dispose the agent (terminal, cannot be reused) */
 	dispose(): void
+
+	// ========== Workflow Support (optional) ==========
+
+	/** Save current history as a workflow. Returns workflow id if successful. */
+	onSaveWorkflow?: (name: string) => string | null
+
+	/** Get all saved workflows */
+	onListWorkflows?: () => { id: string; name: string; steps: number; updatedAt: string }[]
+
+	/** Play a saved workflow by id */
+	onPlayWorkflow?: (id: string) => Promise<{ success: boolean; message: string }>
+
+	/** Stop the currently playing workflow */
+	onStopWorkflow?: () => void
+
+	/** Delete a workflow by id */
+	onDeleteWorkflow?: (id: string) => void
+
+	/** Export a workflow as JSON file download */
+	onExportWorkflow?: (id: string) => void
+
+	/** Import a workflow from a File */
+	onImportWorkflow?: (file: File) => Promise<string | null>
+
+	/** Re-generate (update) a workflow by re-executing its original task with LLM */
+	onUpdateWorkflow?: (id: string) => Promise<void>
 }

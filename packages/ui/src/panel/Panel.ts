@@ -128,6 +128,10 @@ export class Panel {
 			if (this.#shouldShowInputArea()) {
 				this.#showInputArea()
 			}
+			// Show workflow buttons if agent supports it
+			if (status === 'completed' && this.#agent.onSaveWorkflow) {
+				this.#showWorkflowBar()
+			}
 		}
 	}
 
@@ -221,6 +225,8 @@ export class Panel {
 		// Reset user input state
 		this.#isWaitingForUserAnswer = false
 		this.#userAnswerResolver = null
+		// Hide workflow UI
+		this.#hideWorkflowUI()
 		// Show input area
 		this.#showInputArea()
 	}
@@ -664,5 +670,313 @@ export class Panel {
 		}
 
 		return cards
+	}
+
+	// ========== Workflow UI Methods ==========
+
+	/** Remove all workflow UI elements */
+	#hideWorkflowUI(): void {
+		this.#historySection.querySelectorAll(`[data-workflow-ui]`).forEach((el) => el.remove())
+	}
+
+	/** Show workflow action buttons after task completion */
+	#showWorkflowBar(): void {
+		this.#hideWorkflowUI()
+
+		const bar = document.createElement('div')
+		bar.className = styles.workflowBar
+		bar.setAttribute('data-workflow-ui', 'true')
+
+		// Save button
+		const saveBtn = document.createElement('button')
+		saveBtn.className = `${styles.workflowBtn} ${styles.primary}`
+		saveBtn.textContent = `💾 ${this.#i18n.t('ui.workflow.saveWorkflow')}`
+		saveBtn.addEventListener('click', (e) => {
+			e.stopPropagation()
+			this.#showWorkflowSaveDialog()
+		})
+		bar.appendChild(saveBtn)
+
+		// List button
+		if (this.#agent.onListWorkflows) {
+			const listBtn = document.createElement('button')
+			listBtn.className = styles.workflowBtn
+			listBtn.textContent = `📋 ${this.#i18n.t('ui.workflow.workflowList')}`
+			listBtn.addEventListener('click', (e) => {
+				e.stopPropagation()
+				this.#showWorkflowList()
+			})
+			bar.appendChild(listBtn)
+		}
+
+		this.#historySection.appendChild(bar)
+		this.#scrollToBottom()
+	}
+
+	/** Show the save dialog (name input) */
+	#showWorkflowSaveDialog(): void {
+		this.#hideWorkflowUI()
+
+		const dialog = document.createElement('div')
+		dialog.className = styles.workflowSaveDialog
+		dialog.setAttribute('data-workflow-ui', 'true')
+
+		const input = document.createElement('input')
+		input.className = styles.workflowSaveInput
+		input.type = 'text'
+		input.placeholder = this.#i18n.t('ui.workflow.enterName')
+		input.maxLength = 50
+		dialog.appendChild(input)
+
+		const actions = document.createElement('div')
+		actions.className = styles.workflowSaveActions
+
+		const cancelBtn = document.createElement('button')
+		cancelBtn.className = styles.workflowBtn
+		cancelBtn.textContent = this.#i18n.t('ui.workflow.back')
+		cancelBtn.addEventListener('click', (e) => {
+			e.stopPropagation()
+			this.#showWorkflowBar()
+		})
+		actions.appendChild(cancelBtn)
+
+		const confirmBtn = document.createElement('button')
+		confirmBtn.className = `${styles.workflowBtn} ${styles.primary}`
+		confirmBtn.textContent = `💾 ${this.#i18n.t('ui.workflow.saveWorkflow')}`
+		confirmBtn.addEventListener('click', (e) => {
+			e.stopPropagation()
+			const name = input.value.trim()
+			if (!name) return
+			const id = this.#agent.onSaveWorkflow?.(name)
+			if (id) {
+				// Show success feedback
+				this.#hideWorkflowUI()
+				const msg = document.createElement('div')
+				msg.setAttribute('data-workflow-ui', 'true')
+				msg.innerHTML = createCard({
+					icon: '✅',
+					content: this.#i18n.t('ui.workflow.workflowSaved'),
+					type: 'output',
+				})
+				this.#historySection.appendChild(msg)
+				this.#scrollToBottom()
+				// Re-show workflow bar after a moment
+				setTimeout(() => this.#showWorkflowBar(), 1500)
+			}
+		})
+		actions.appendChild(confirmBtn)
+
+		// Submit on Enter
+		input.addEventListener('keydown', (e) => {
+			if (e.isComposing) return
+			if (e.key === 'Enter') {
+				e.preventDefault()
+				confirmBtn.click()
+			}
+		})
+
+		dialog.appendChild(actions)
+		this.#historySection.appendChild(dialog)
+		this.#scrollToBottom()
+		setTimeout(() => input.focus(), 100)
+	}
+
+	/** Show the workflow list view */
+	#showWorkflowList(): void {
+		if (!this.#agent.onListWorkflows) return
+
+		this.#hideWorkflowUI()
+
+		const section = document.createElement('div')
+		section.className = styles.workflowListSection
+		section.setAttribute('data-workflow-ui', 'true')
+
+		// Header with back button
+		const header = document.createElement('div')
+		header.className = styles.workflowListHeader
+
+		const title = document.createElement('span')
+		title.className = styles.workflowListTitle
+		title.textContent = `📋 ${this.#i18n.t('ui.workflow.workflowList')}`
+		header.appendChild(title)
+
+		const backBtn = document.createElement('button')
+		backBtn.className = styles.workflowBackBtn
+		backBtn.textContent = `← ${this.#i18n.t('ui.workflow.back')}`
+		backBtn.addEventListener('click', (e) => {
+			e.stopPropagation()
+			this.#showWorkflowBar()
+		})
+		header.appendChild(backBtn)
+		section.appendChild(header)
+
+		// Import button
+		if (this.#agent.onImportWorkflow) {
+			const importBtn = document.createElement('button')
+			importBtn.className = styles.workflowImportBtn
+			importBtn.textContent = `📥 ${this.#i18n.t('ui.workflow.importWorkflow')}`
+			importBtn.addEventListener('click', (e) => {
+				e.stopPropagation()
+				this.#triggerWorkflowImport()
+			})
+			section.appendChild(importBtn)
+		}
+
+		// Workflow items
+		const workflows = this.#agent.onListWorkflows()
+
+		if (workflows.length === 0) {
+			const empty = document.createElement('div')
+			empty.className = styles.workflowEmpty
+			empty.textContent = this.#i18n.t('ui.workflow.noWorkflows')
+			section.appendChild(empty)
+		} else {
+			for (const wf of workflows) {
+				section.appendChild(this.#createWorkflowItem(wf))
+			}
+		}
+
+		this.#historySection.appendChild(section)
+		this.#scrollToBottom()
+	}
+
+	/** Create a single workflow list item */
+	#createWorkflowItem(wf: {
+		id: string
+		name: string
+		steps: number
+		updatedAt: string
+	}): HTMLElement {
+		const item = document.createElement('div')
+		item.className = styles.workflowItem
+
+		// Info
+		const info = document.createElement('div')
+		info.className = styles.workflowItemInfo
+
+		const name = document.createElement('div')
+		name.className = styles.workflowItemName
+		name.textContent = wf.name
+		info.appendChild(name)
+
+		const meta = document.createElement('div')
+		meta.className = styles.workflowItemMeta
+		const date = new Date(wf.updatedAt)
+		meta.textContent = `${wf.steps} steps · ${date.toLocaleDateString()}`
+		info.appendChild(meta)
+
+		item.appendChild(info)
+
+		// Action buttons
+		const actions = document.createElement('div')
+		actions.className = styles.workflowItemActions
+
+		// Play
+		if (this.#agent.onPlayWorkflow) {
+			const playBtn = document.createElement('button')
+			playBtn.className = `${styles.workflowActionBtn} ${styles.playBtn}`
+			playBtn.textContent = `▶ ${this.#i18n.t('ui.workflow.playWorkflow')}`
+			playBtn.addEventListener('click', (e) => {
+				e.stopPropagation()
+				this.#playWorkflow(wf.id)
+			})
+			actions.appendChild(playBtn)
+		}
+
+		// Export
+		if (this.#agent.onExportWorkflow) {
+			const exportBtn = document.createElement('button')
+			exportBtn.className = styles.workflowActionBtn
+			exportBtn.textContent = `📤`
+			exportBtn.title = this.#i18n.t('ui.workflow.exportWorkflow')
+			exportBtn.addEventListener('click', (e) => {
+				e.stopPropagation()
+				this.#agent.onExportWorkflow?.(wf.id)
+			})
+			actions.appendChild(exportBtn)
+		}
+
+		// Delete
+		if (this.#agent.onDeleteWorkflow) {
+			const deleteBtn = document.createElement('button')
+			deleteBtn.className = `${styles.workflowActionBtn} ${styles.deleteBtn}`
+			deleteBtn.textContent = `🗑`
+			deleteBtn.title = this.#i18n.t('ui.workflow.deleteWorkflow')
+			deleteBtn.addEventListener('click', (e) => {
+				e.stopPropagation()
+				if (confirm(this.#i18n.t('ui.workflow.confirmDelete'))) {
+					this.#agent.onDeleteWorkflow?.(wf.id)
+					this.#showWorkflowList() // Refresh
+				}
+			})
+			actions.appendChild(deleteBtn)
+		}
+
+		item.appendChild(actions)
+		return item
+	}
+
+	/** Trigger file input for workflow import */
+	#triggerWorkflowImport(): void {
+		const input = document.createElement('input')
+		input.type = 'file'
+		input.accept = '.json'
+		input.style.display = 'none'
+		input.addEventListener('change', async () => {
+			const file = input.files?.[0]
+			if (file && this.#agent.onImportWorkflow) {
+				const id = await this.#agent.onImportWorkflow(file)
+				if (id) {
+					this.#showWorkflowList() // Refresh list
+				}
+			}
+			input.remove()
+		})
+		document.body.appendChild(input)
+		input.click()
+	}
+
+	/** Start playing a workflow */
+	async #playWorkflow(id: string): Promise<void> {
+		if (!this.#agent.onPlayWorkflow) return
+
+		this.#hideWorkflowUI()
+		this.#hideInputArea()
+
+		// Show playing status
+		this.#pendingHeaderText = '▶ Playing workflow...'
+		this.#updateStatusIndicator('executing')
+
+		try {
+			const result = await this.#agent.onPlayWorkflow(id)
+
+			// Show result
+			const msg = document.createElement('div')
+			msg.setAttribute('data-workflow-ui', 'true')
+			msg.innerHTML = createCard({
+				icon: result.success ? '✅' : '❌',
+				content: result.message,
+				type: result.success ? 'output' : 'observation',
+			})
+			this.#historySection.appendChild(msg)
+			this.#scrollToBottom()
+		} catch (err) {
+			const msg = document.createElement('div')
+			msg.setAttribute('data-workflow-ui', 'true')
+			msg.innerHTML = createCard({
+				icon: '❌',
+				content: String(err),
+				type: 'observation',
+			})
+			this.#historySection.appendChild(msg)
+			this.#scrollToBottom()
+		}
+
+		this.#updateStatusIndicator('completed')
+		this.#pendingHeaderText = this.#i18n.t('ui.panel.ready')
+		this.#showWorkflowBar()
+		if (this.#shouldShowInputArea()) {
+			this.#showInputArea()
+		}
 	}
 }

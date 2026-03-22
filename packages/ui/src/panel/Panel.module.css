@@ -599,3 +599,206 @@
 		}
 	}
 }
+
+/* ========== Workflow 按钮行 ========== */
+.workflowBar {
+	display: flex;
+	gap: 6px;
+	padding: 6px 8px;
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+	.workflowBtn {
+		flex: 1;
+		padding: 5px 8px;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.08);
+		color: white;
+		font-size: 11px;
+		cursor: pointer;
+		transition: all 0.2s;
+		white-space: nowrap;
+
+		&:hover {
+			background: rgba(255, 255, 255, 0.15);
+			border-color: rgba(255, 255, 255, 0.3);
+		}
+
+		&.primary {
+			background: rgba(57, 182, 255, 0.2);
+			border-color: rgba(57, 182, 255, 0.4);
+			color: rgb(160, 220, 255);
+
+			&:hover {
+				background: rgba(57, 182, 255, 0.3);
+			}
+		}
+	}
+}
+
+/* ========== Workflow 列表 ========== */
+.workflowListSection {
+	padding: 8px;
+	max-height: 300px;
+	overflow-y: auto;
+	scrollbar-width: none;
+
+	.workflowListHeader {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 4px 0 8px;
+
+		.workflowListTitle {
+			color: white;
+			font-size: 12px;
+			font-weight: 600;
+		}
+
+		.workflowBackBtn {
+			background: none;
+			border: none;
+			color: rgba(255, 255, 255, 0.7);
+			cursor: pointer;
+			font-size: 11px;
+			padding: 2px 6px;
+			border-radius: 4px;
+
+			&:hover {
+				color: white;
+				background: rgba(255, 255, 255, 0.1);
+			}
+		}
+	}
+
+	.workflowImportBtn {
+		width: 100%;
+		padding: 6px;
+		border: 1px dashed rgba(255, 255, 255, 0.2);
+		border-radius: 6px;
+		background: transparent;
+		color: rgba(255, 255, 255, 0.6);
+		font-size: 11px;
+		cursor: pointer;
+		margin-bottom: 6px;
+		transition: all 0.2s;
+
+		&:hover {
+			border-color: rgba(255, 255, 255, 0.4);
+			color: white;
+			background: rgba(255, 255, 255, 0.05);
+		}
+	}
+
+	.workflowEmpty {
+		text-align: center;
+		color: rgba(255, 255, 255, 0.5);
+		font-size: 12px;
+		padding: 16px 0;
+	}
+
+	.workflowItem {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 8px 10px;
+		margin-bottom: 4px;
+		background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+		border-radius: 6px;
+		border-left: 2px solid rgba(57, 182, 255, 0.4);
+		transition: all 0.2s;
+
+		&:hover {
+			background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+		}
+
+		.workflowItemInfo {
+			flex: 1;
+			min-width: 0;
+
+			.workflowItemName {
+				color: white;
+				font-size: 12px;
+				font-weight: 500;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.workflowItemMeta {
+				color: rgba(255, 255, 255, 0.5);
+				font-size: 10px;
+				margin-top: 2px;
+			}
+		}
+
+		.workflowItemActions {
+			display: flex;
+			gap: 4px;
+			margin-left: 8px;
+
+			.workflowActionBtn {
+				padding: 3px 6px;
+				border: none;
+				border-radius: 4px;
+				background: rgba(255, 255, 255, 0.1);
+				color: rgba(255, 255, 255, 0.8);
+				font-size: 10px;
+				cursor: pointer;
+				transition: all 0.15s;
+
+				&:hover {
+					background: rgba(255, 255, 255, 0.2);
+					color: white;
+				}
+
+				&.playBtn {
+					background: rgba(34, 197, 94, 0.2);
+					color: rgb(34, 197, 94);
+
+					&:hover {
+						background: rgba(34, 197, 94, 0.3);
+					}
+				}
+
+				&.deleteBtn:hover {
+					background: rgba(239, 68, 68, 0.2);
+					color: rgb(239, 68, 68);
+				}
+			}
+		}
+	}
+}
+
+/* ========== Workflow 保存对话框 ========== */
+.workflowSaveDialog {
+	padding: 8px;
+
+	.workflowSaveInput {
+		width: 100%;
+		padding: 6px 10px;
+		border: 1px solid rgba(255, 255, 255, 0.3);
+		border-radius: 6px;
+		background: rgba(255, 255, 255, 0.1);
+		color: white;
+		font-size: 12px;
+		outline: none;
+		margin-bottom: 6px;
+		box-sizing: border-box;
+
+		&::placeholder {
+			color: rgba(255, 255, 255, 0.4);
+		}
+
+		&:focus {
+			border-color: rgba(57, 182, 255, 0.6);
+			box-shadow: 0 0 0 2px rgba(57, 182, 255, 0.2);
+		}
+	}
+
+	.workflowSaveActions {
+		display: flex;
+		gap: 6px;
+		justify-content: flex-end;
+	}
+}

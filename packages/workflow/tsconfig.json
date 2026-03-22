@@ -7,21 +7,8 @@
         "baseUrl": ".",
         "outDir": "dist",
         "paths": {
-            //
-            "@page-agent/llms": [
-                "../llms/src/index.ts"
-            ],
             "@page-agent/page-controller": [
                 "../page-controller/src/PageController.ts"
-            ],
-            "@page-agent/core": [
-                "../core/src/PageAgentCore.ts"
-            ],
-            "@page-agent/ui": [
-                "../ui/src/index.ts"
-            ],
-            "@page-agent/workflow": [
-                "../workflow/src/index.ts"
             ]
         }
     },
@@ -33,21 +20,8 @@
         "node_modules"
     ],
     "references": [
-        //
-        {
-            "path": "../llms"
-        },
         {
             "path": "../page-controller"
-        },
-        {
-            "path": "../core"
-        },
-        {
-            "path": "../ui"
-        },
-        {
-            "path": "../workflow"
         }
     ]
 }

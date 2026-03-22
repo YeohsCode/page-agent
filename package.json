@@ -8,6 +8,7 @@
         "packages/ui",
         "packages/llms",
         "packages/core",
+        "packages/workflow",
         "packages/page-agent",
         "packages/mcp",
         "packages/extension",
@@ -18,7 +19,7 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/alibaba/page-agent.git"
+        "url": "https://github.com/YeohsCode/page-agent.git"
     },
     "homepage": "https://alibaba.github.io/page-agent/",
     "engines": {

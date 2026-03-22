@@ -1,0 +1,45 @@
+{
+    "name": "@page-agent/workflow",
+    "private": false,
+    "version": "1.6.0",
+    "type": "module",
+    "main": "./dist/esm/workflow.js",
+    "module": "./dist/esm/workflow.js",
+    "types": "./dist/esm/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/esm/index.d.ts",
+            "import": "./dist/esm/workflow.js",
+            "default": "./dist/esm/workflow.js"
+        }
+    },
+    "files": [
+        "dist/"
+    ],
+    "description": "Workflow recording and replay for PageAgent - save and replay automation steps without LLM",
+    "keywords": [
+        "workflow",
+        "recording",
+        "replay",
+        "automation",
+        "page-agent"
+    ],
+    "author": "YeohsCode",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/YeohsCode/page-agent.git"
+    },
+    "scripts": {
+        "build": "vite build"
+    },
+    "dependencies": {
+        "@page-agent/page-controller": "1.6.0"
+    },
+    "peerDependencies": {
+        "zod": "^3.25.0 || ^4.0.0"
+    },
+    "devDependencies": {
+        "zod": "^4.3.5"
+    }
+}
