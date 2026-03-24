@@ -166,10 +166,22 @@ async fn execute_agent_task<R: Runtime>(app: AppHandle<R>, task: String) -> Resu
     if let Some(webview) = app.get_webview("session-view") {
         // Evaluate JavaScript to run the task on the injected PageAgent instance
         let js_code = format!(
-            "if (window.pageAgent) {{ window.pageAgent.execute(`{}`); }} else {{ console.error('PageAgent not injected yet.'); }}",
-            task.replace('`', "\\`") // escape backticks
+            r#"
+            (function() {{
+                if (window.pageAgent) {{
+                    window.pageAgent.execute(`{}`);
+                    return "OK";
+                }} else {{
+                    console.error('PageAgent not injected yet.');
+                    return "ERROR: Agent not ready";
+                }}
+            }})()
+            "#,
+            task.replace('`', "\\`").replace('$', "\\$")
         );
         let _ = webview.eval(&js_code);
+    } else {
+        return Err("No active browser session found".to_string());
     }
     Ok(())
 }
